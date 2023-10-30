@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .db_create import Base, Album, Author, Song
+from db_create import Base, Album, Author, Song
 
 engine = create_engine("postgresql+psycopg2://dima:8726621331@localhost/dima", echo=True)
 engine.connect()
