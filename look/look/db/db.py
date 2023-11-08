@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from db_create import Base, Album, Author, Song
+from db_create import Base, Album, Author, Song, User
+from passlib.hash import sha256_crypt
 
 engine = create_engine("postgresql+psycopg2://dima:8726621331@localhost/dima", echo=True)
 engine.connect()
@@ -11,9 +12,11 @@ s = session()
 #author_one = Author(name="Линда") 
 #s.add(author_one) 
 #s.commit()
-s.add_all([Author(name="Линда"),
-           Author(name="ДДТ"),
-           Author(name="Hi-Fi")
+s.add_all([Author(Name="Линда"),
+           Author(Name="ДДТ"),
+           Author(Name="Hi-Fi"),
+           Author(Name="Hi-Hi-Fi"),
+           Author(Name="Hello")
            ])
 s.commit()
 
@@ -42,4 +45,11 @@ s.add_all([Song(title="Холод", album_id=1),
            Song(title="Питер", album_id=5),
            Song(title="Свобода", album_id=5),
         ])
+s.commit()
+
+
+s.add_all([User(login_1="dima@mail.ru", password_1=sha256_crypt.hash("12345678")),
+           User(login_1="dima1@mail.ru", password_1=sha256_crypt.hash("12345678910")),
+           User(login_1="dima2@mail.ru", password_1=sha256_crypt.hash("12345"))
+           ])
 s.commit()
