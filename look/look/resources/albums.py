@@ -2,7 +2,6 @@ import json
 import falcon
 from sqlalchemy import desc
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import sessionmaker
 from ..db.db_create import Album, Author, session
 from .func.todict import to_dict
 
@@ -53,7 +52,9 @@ class AlbumH:
                 alb = s.query(Album).get(name)
                 AlbDict = to_dict(alb) 
                 del AlbDict['id_album']
-                if form.keys() == AlbDict.keys():
+                if set(form.keys()).issubset(set(AlbDict.keys())):
+                    if 'author_id' in list(form.keys()) and form['author_id'] not in [str(id_aut[0]) for id_aut in s.query(Author.id_author)]:
+                        raise falcon.HTTPNotFound('Please, enter an existing author ID')
                     for key in form.keys():
                         setattr(alb, key, form[key])
                     s.add(alb)
@@ -65,7 +66,7 @@ class AlbumH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format') 
+            raise falcon.HTTPNotFound('Please, enter album ID in numeric format') 
         
     def on_delete(self, req, resp, name):
         if name.isdigit():

@@ -2,7 +2,6 @@ import json
 import falcon
 from sqlalchemy import desc
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import sessionmaker
 from ..db.db_create import Author, session
 from .func.todict import to_dict
 
@@ -54,7 +53,7 @@ class AuthorH:
                 aut = s.query(Author).get(name)
                 AutDict = to_dict(aut) 
                 del AutDict['id_author']
-                if form.keys() == AutDict.keys():
+                if set(form.keys()).issubset(set(AutDict.keys())):
                     for key in form.keys():
                         setattr(aut, key, form[key])
                     s.add(aut)
