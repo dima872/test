@@ -1,6 +1,6 @@
 import json
 import falcon
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 from sqlalchemy.exc import NoResultFound
 from ..db.db_create import Album, Author, Song, session
 from .func.todict import to_dict
@@ -10,26 +10,25 @@ s = session()
 class SongsH:
 
     def on_get(self, req, resp):
-        ListParams = ['album', 'author','tag']
-        if req.params == {}: #or list(req.params.keys())[0].lower() not in ListParams:
-            DictAlbAuthor = {i.id_song: i.title for i in s.query(Song)}
-        else:
-            
-          #  if ListParams[0] in req.params:
-           #     fil = filter(Album.author_id == Author.id_author).filter(Author.Name.ilike(ValueTitle + '%'))
-          #  if ListParams[1] in req.params:
-          #      fil = fil.
-                
+       
+        StrFilt = []
+        if 'album' in req.params:
+            StrFilt.append(Song.album_id == Album.id_album)
+            StrFilt.append(Album.title.ilike(req.params['album'][-1] + '%'))
+        if 'author' in req.params:
+            if 'album' not in req.params:
+                StrFilt.append(Song.album_id == Album.id_album)
+            StrFilt.append(Album.author_id == Author.id_author)  
+            StrFilt.append(Author.Name.ilike(req.params['author'][-1] + '%'))
+        if 'tag' in req.params:
+            StrFilt.append(Song.tag.ilike('%' + req.params['tag'][-1] + '%'))
+        if 'song' in req.params:
+            StrFilt.append(Song.title.ilike(req.params['song'][-1] + '%'))
         #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.album_id == Album.id_album).filter(Album.title.ilike(ValueTitle + '%'))}    Фильтрация по альбому
         #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.title.ilike(ValueTitle + '%'))}     Фильтрация по названию
         #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.album_id == Album.id_album).filter(Album.author_id == Author.id_author).filter(Author.Name.ilike(ValueTitle + '%'))}    Фильтрация по имени автора
         #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.tag.ilike('%' + ValueTitle + '%'))}     Фильтрация по тегу
-
-
-            ValueTitle = list(req.params.values())[0]
-            if type(ValueTitle) is list:
-                ValueTitle = ValueTitle[-1]
-            DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.tag.ilike('%' + ValueTitle + '%'))}#filter(Author.Name.ilike(ValueTitle + '%'))}
+        DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(*StrFilt)}
         SDictAlbAut = dict(sorted(DictAlbAuthor.items(), key=lambda x: x[0]))
         resp.text = json.dumps({'songs': SDictAlbAut})
 

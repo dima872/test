@@ -11,14 +11,11 @@ class AlbumsH:
 
     def on_get(self, req, resp):
         
-        if req.params == {} or list(req.params.keys())[0].lower() != 'author':
-            
-            DictAlbAuthor = {i.id_album: i.title for i in s.query(Album)}
-        else:
-            ValueTitle = list(req.params.values())[0]
-            if type(ValueTitle) is list:
-                ValueTitle = ValueTitle[-1]
-            DictAlbAuthor = {i.id_album: i.title for i in s.query(Album).filter(Album.author_id == Author.id_author).filter(Author.Name.ilike(ValueTitle + '%'))}
+        StrFilt = []
+        if 'author' in req.params:
+            StrFilt.append(Album.author_id == Author.id_author)
+            StrFilt.append(Author.Name.ilike(req.params['author'][-1] + '%'))
+        DictAlbAuthor = {i.id_album: i.title for i in s.query(Album).filter(*StrFilt)}
         SDictAlbAut = dict(sorted(DictAlbAuthor.items(), key=lambda x: x[0]))
         resp.text = json.dumps({'albums': SDictAlbAut})
         

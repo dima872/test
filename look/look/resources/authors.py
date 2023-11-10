@@ -11,14 +11,10 @@ class AuthorsH:
 
     def on_get(self, req, resp):
        
-        if req.params == {} or list(req.params.keys())[0].lower() != 'author':
-            DictAuthor = {i.id_author: i.Name for i in s.query(Author)}
-        else:
-            print(req.params)
-            ValueName = list(req.params.values())[0]
-            if type(ValueName) is list:
-                ValueName = ValueName[-1]
-            DictAuthor = {i.id_author: i.Name for i in s.query(Author).filter(Author.Name.ilike(ValueName + '%'))}
+        StrFilt = []
+        if 'author' in req.params:
+            StrFilt.append(Author.Name.ilike(req.params['author'][-1] + '%'))
+        DictAuthor = {i.id_author: i.Name for i in s.query(Author).filter(*StrFilt)}
         SDictAut = dict(sorted(DictAuthor.items(), key=lambda x: x[0]))
         resp.text = json.dumps({'authors': SDictAut})
 
