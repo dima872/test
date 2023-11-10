@@ -12,13 +12,15 @@ class AuthorsH:
     def on_get(self, req, resp):
        
         if req.params == {} or list(req.params.keys())[0].lower() != 'author':
-            ListAuthor = [AuthorName[0] for AuthorName in s.query(Author.Name)]
+            DictAuthor = {i.id_author: i.Name for i in s.query(Author)}
         else:
-            ValueName= list(req.params.values())[0]
+            print(req.params)
+            ValueName = list(req.params.values())[0]
             if type(ValueName) is list:
                 ValueName = ValueName[-1]
-            ListAuthor = [AuthorName[0] for AuthorName in s.query(Author.Name).filter(Author.Name.ilike(ValueName + '%'))]
-        resp.text = json.dumps({'authors': ListAuthor})
+            DictAuthor = {i.id_author: i.Name for i in s.query(Author).filter(Author.Name.ilike(ValueName + '%'))}
+        SDictAut = dict(sorted(DictAuthor.items(), key=lambda x: x[0]))
+        resp.text = json.dumps({'authors': SDictAut})
 
     def on_post(self, req, resp):
        
@@ -44,7 +46,7 @@ class AuthorH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter author's ID in numeric format")
     
     def on_patch(self, req, resp, name):
         if name.isdigit():
@@ -65,7 +67,7 @@ class AuthorH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter author's ID in numeric format")
         
     def on_delete(self, req, resp, name):
         if name.isdigit():
@@ -77,4 +79,4 @@ class AuthorH:
             except NoResultFound:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter author's ID in numeric format")

@@ -12,14 +12,16 @@ class AlbumsH:
     def on_get(self, req, resp):
         
         if req.params == {} or list(req.params.keys())[0].lower() != 'author':
-            ListAlbAuthor = [title[0] for title in s.query(Album.title)]
+            
+            DictAlbAuthor = {i.id_album: i.title for i in s.query(Album)}
         else:
             ValueTitle = list(req.params.values())[0]
             if type(ValueTitle) is list:
                 ValueTitle = ValueTitle[-1]
-            ListAlbAuthor = [title[0] for title in s.query(Album.title).filter(Album.author_id == Author.id_author).filter(Author.name.ilike(ValueTitle + '%'))]
-        resp.text = json.dumps({'albums': ListAlbAuthor})
-
+            DictAlbAuthor = {i.id_album: i.title for i in s.query(Album).filter(Album.author_id == Author.id_author).filter(Author.Name.ilike(ValueTitle + '%'))}
+        SDictAlbAut = dict(sorted(DictAlbAuthor.items(), key=lambda x: x[0]))
+        resp.text = json.dumps({'albums': SDictAlbAut})
+        
     def on_post(self, req, resp):
         
         form = json.loads(req.stream.read()) #не по json подумать
@@ -43,7 +45,7 @@ class AlbumH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter album's ID in numeric format")
         
     def on_patch(self, req, resp, name):
         if name.isdigit():
@@ -53,8 +55,9 @@ class AlbumH:
                 AlbDict = to_dict(alb) 
                 del AlbDict['id_album']
                 if set(form.keys()).issubset(set(AlbDict.keys())):
+                    print(form)
                     if 'author_id' in list(form.keys()) and form['author_id'] not in [str(id_aut[0]) for id_aut in s.query(Author.id_author)]:
-                        raise falcon.HTTPNotFound('Please, enter an existing author ID')
+                        raise falcon.HTTPNotFound("Please, enter an existing author's ID")
                     for key in form.keys():
                         setattr(alb, key, form[key])
                     s.add(alb)
@@ -66,7 +69,7 @@ class AlbumH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter album ID in numeric format') 
+            raise falcon.HTTPNotFound("Please, enter album's ID in numeric format") 
         
     def on_delete(self, req, resp, name):
         if name.isdigit():
@@ -78,4 +81,4 @@ class AlbumH:
             except NoResultFound:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter album's ID in numeric format")

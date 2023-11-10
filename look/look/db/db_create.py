@@ -33,6 +33,7 @@ class Song(Base):
     title = Column(String(250), nullable=False)
     album_id = Column(Integer, ForeignKey("Albums.id_album"))
     album = relationship("Album")
+    tag = Column(String(250), nullable=True)
 
 class User(Base):
     __tablename__ = 'Users'
