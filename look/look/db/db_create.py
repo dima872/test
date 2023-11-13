@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String  
+from sqlalchemy import Column, ForeignKey, Integer, String, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base  
 from sqlalchemy.orm import relationship, sessionmaker  
 from sqlalchemy import create_engine  
@@ -34,6 +34,7 @@ class Song(Base):
     album_id = Column(Integer, ForeignKey("Albums.id_album"))
     album = relationship("Album")
     tag = Column(String(250), nullable=True)
+    file = Column(LargeBinary, nullable=True) #LargeBinary
 
 class User(Base):
     __tablename__ = 'Users'

@@ -1,9 +1,11 @@
 import json
 import falcon
-from sqlalchemy import desc, text
+from sqlalchemy import desc
 from sqlalchemy.exc import NoResultFound
 from ..db.db_create import Album, Author, Song, session
+import mimetypes
 from .func.todict import to_dict
+
 
 s = session()
 
@@ -50,12 +52,17 @@ class SongH:
     def on_get(self, req, resp, name): 
         if name.isdigit():
             try:
-                alb = s.query(Song).get(name)
-                resp.text = json.dumps(to_dict(alb)) 
+                songquery = s.query(Song).get(name)
+                dictsq = to_dict(songquery)
+                if songquery.file is not None:
+                    dictsq['file'] = 'Available'
+                else:
+                    dictsq['file'] = 'Not available'
+                resp.text = json.dumps(dictsq)
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
         
     def on_post(self, req, resp, name): #теги
         if name.isdigit():
@@ -106,7 +113,7 @@ class SongH:
             except AttributeError:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter album ID in numeric format') 
+            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format") 
         
     def on_delete(self, req, resp, name):
         if name.isdigit():
@@ -118,4 +125,44 @@ class SongH:
             except NoResultFound:
                 raise falcon.HTTPNotFound
         else:
-            raise falcon.HTTPNotFound('Please, enter your ID in numeric format')
+            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
+
+class LoadGet:
+    def on_get(self, req, resp, name):
+        if name.isdigit():
+            try:
+                playsong = s.query(Song).get(name).file
+                resp.content_type = 'audio/mpeg'
+               # decplaysong = base64.b64decode(playsong)
+                resp.data = playsong
+                resp.status = falcon.HTTP_200 #206
+            except AttributeError:
+                raise falcon.HTTPNotFound
+        else:
+            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
+        
+    def on_put(self, req, resp, name): #подумать на типом метода (put/patch)
+
+        if 'multipart/form-data' not in req.content_type:
+            raise falcon.HTTPBadRequest("Use 'multipart/form-data' content")
+        
+        if name.isdigit():
+           
+            for i in req.get_media():
+                content_of_file = i.stream.read()
+                name_of_file = i.filename
+                
+                
+            if mimetypes.guess_type(name_of_file)[0] != 'audio/mpeg':
+                raise falcon.HTTPBadRequest("You can only use .mp3 format")
+            audiofile = s.query(Song).get(name)
+            audiofile.file = content_of_file 
+            s.add(audiofile)
+            s.commit()
+            resp.status = falcon.HTTP_201
+        else:
+            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format") 
+      #  def bin_song()
+
+        
+           
