@@ -1,16 +1,20 @@
 import falcon
-from .resources.albums import AlbumsH, AlbumH
-from .resources.authors import AuthorsH, AuthorH
-from .resources.songs import SongsH, SongH, LoadGet
-from .jwtoken import auth_middleware, login
-app = application = falcon.App(middleware=[auth_middleware])
-    #Методы falcon.App.add_route()и falcon.asgi.App.add_route()используются для связи шаблона URI с ресурсом. Затем Falcon сопоставляет входящие запросы с ресурсами на основе этих шаблонов.
-app.add_route('/res/albums', AlbumsH())
-app.add_route('/res/albums/{name}', AlbumH())
-app.add_route('/res/authors', AuthorsH())
-app.add_route('/res/authors/{name}', AuthorH())
-app.add_route('/res/songs', SongsH())
-app.add_route('/res/songs/{name}', SongH())
-app.add_route('/login', login)
-app.add_route('/res/songs/{name}/load', LoadGet())
+from .resources.albums import AlbumsH, AlbumH, HandlerAlbums
+from .resources.authors import AuthorsH, AuthorH, HandlerAuthors
+from .resources.songs import SongsH, SongH, LoadGet, HandlerSongs
+from .jwtoken import AuthMiddleware, LoginH
 #falcon.strip_url_path_trailing_slash = True
+app = application = falcon.App(middleware=[AuthMiddleware()])
+    #Методы falcon.App.add_route()и falcon.asgi.App.add_route()используются для связи шаблона URI с ресурсом. Затем Falcon сопоставляет входящие запросы с ресурсами на основе этих шаблонов.
+handleralb = HandlerAlbums()
+handleraut = HandlerAuthors()
+handlersgs = HandlerSongs()
+
+app.add_route('/res/albums', AlbumsH(handleralb))
+app.add_route('/res/albums/{name}', AlbumH(handleralb))
+app.add_route('/res/authors', AuthorsH(handleraut))
+app.add_route('/res/authors/{name}', AuthorH(handleraut))
+app.add_route('/res/songs', SongsH(handlersgs))
+app.add_route('/res/songs/{name}', SongH(handlersgs))
+app.add_route('/login', LoginH())
+app.add_route('/res/songs/{name}/load', LoadGet(handlersgs))

@@ -2,38 +2,46 @@ import json
 import falcon
 import jwt
 from passlib.hash import sha256_crypt
-from sqlalchemy.orm import sessionmaker
-from .db.db_create import User, engine
+from .db.db_create import User, session
+from .resources.func.functions1 import json_body
 
-engine.connect()
-session = sessionmaker(bind=engine)
 s = session()
-cookie_o = {"name": "my_auth_token",
-               "max_age": 36000,
+cookie_o = {"name": "auth_token",
+               "max_age": 3600,
                "path": "/res",
                "http_only": True}
-secret = 'vqyvqfqekjn'
+secret = 'vqyvqfqekjns'
+
 class LoginH:
 
+    @json_body
     def on_post(self, req, resp):
-        def add_new_jwtoken(resp, email):
-            token = jwt.encode({'email': email #добавить что-то еще
-                            },
-                           secret,
-                           algorithm='HS256')#алгоритм необязательно, если 256
-            cookie_o["value"] = token #Значение токена
-            resp.set_cookie(**cookie_o)
-           
-        form = json.loads(req.stream.read())
+        cookie = self.add_new_jwtoken(req.stream)
+        resp.set_cookie(**cookie)
+
+    def add_new_jwtoken(self, body_j):
+        email = self.valid_email_password(body_j)
+        token = jwt.encode({'email': email #добавить что-то еще
+                        },
+                        secret,
+                        algorithm='HS256')#алгоритм необязательно, если 256
+        cookie_o["value"] = token #Значение токена
+        return cookie_o
+    
+    def get_email_password(self,body_j):
+        form = json.loads(body_j.read())
         try:
             email = form["email"]
             password = form["password"]
+            return email, password
         except KeyError: 
-            raise falcon.HTTPBadRequest
-
-        ListLogin = [i[0] for i in s.query(User.login_1)] #два обращения к базе, попробовать сократить до одного
-        if email in ListLogin and sha256_crypt.verify(password, s.query(User.password_1).filter(User.login_1 == email)[0][0]):
-            add_new_jwtoken(resp, email)
+            raise falcon.HTTPBadRequest("No such key")
+        
+    def valid_email_password(self, body_j):
+        list_login = [i[0] for i in s.query(User.login_1)] #два обращения к базе, попробовать сократить до одного
+        email, passw = self.get_email_password(body_j)
+        if email in list_login and sha256_crypt.verify(passw, s.query(User.password_1).filter(User.login_1 == email)[0][0]):
+            return email
         else:
             raise falcon.HTTPUnauthorized('Incorrect e-mail or password')
 
@@ -42,23 +50,23 @@ class AuthMiddleware:
     def process_resource(self, req, resp, resource, params):
         if isinstance(resource, LoginH):
             return
+        token = self.get_token(req)
+        if not self.valid_token(token):
+            raise falcon.HTTPUnauthorized('Incorrect token, auth token required')
 
-        token = req.cookies.get(cookie_o.get("name"))
-        print(token)
-        if token is None:
+    def get_token(self, req):
+        token_1 = req.cookies.get(cookie_o.get("name"))
+        print(token_1)
+        if token_1 is None:
             raise falcon.HTTPUnauthorized('Auth token required')
-        def valid(token):
-            try:
-                jwt.decode(token, secret, verify='True', algorithms=['HS256']) #option
-                return True
-            except:
-                return False
-
-        if not valid(token):
-            raise falcon.HTTPUnauthorized('Auth token required')
-
-auth_middleware = AuthMiddleware()
-login = LoginH()
-
+        return token_1
+    
+    def valid_token(self, token):
+        try:
+            jwt.decode(token, secret, verify='True', algorithms=['HS256']) #option
+            return True
+        except:
+            return False
+        
 #s1 = sha256_crypt.hash("password")
 #s2 = sha256_crypt.verify("password", s1)

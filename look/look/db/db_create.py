@@ -38,6 +38,7 @@ class Song(Base):
 
 class User(Base):
     __tablename__ = 'Users'
+    
     id_user = Column(Integer, primary_key=True)
     login_1 = Column(String(250), nullable=False)
     password_1 = Column(String(250), nullable=False)

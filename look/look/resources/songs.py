@@ -1,168 +1,213 @@
 import json
 import falcon
 from sqlalchemy import desc
-from sqlalchemy.exc import NoResultFound
 from ..db.db_create import Album, Author, Song, session
 import mimetypes
-from .func.todict import to_dict
-
+from .func.functions1 import to_dict, valid_id_not_in_db, json_body, json_body_and_name
 
 s = session()
 
 class SongsH:
 
-    def on_get(self, req, resp):
-       
-        StrFilt = []
-        if 'album' in req.params:
-            StrFilt.append(Song.album_id == Album.id_album)
-            StrFilt.append(Album.title.ilike(req.params['album'][-1] + '%'))
-        if 'author' in req.params:
-            if 'album' not in req.params:
-                StrFilt.append(Song.album_id == Album.id_album)
-            StrFilt.append(Album.author_id == Author.id_author)  
-            StrFilt.append(Author.Name.ilike(req.params['author'][-1] + '%'))
-        if 'tag' in req.params:
-            StrFilt.append(Song.tag.ilike('%' + req.params['tag'][-1] + '%'))
-        if 'song' in req.params:
-            StrFilt.append(Song.title.ilike(req.params['song'][-1] + '%'))
-        #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.album_id == Album.id_album).filter(Album.title.ilike(ValueTitle + '%'))}    Фильтрация по альбому
-        #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.title.ilike(ValueTitle + '%'))}     Фильтрация по названию
-        #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.album_id == Album.id_album).filter(Album.author_id == Author.id_author).filter(Author.Name.ilike(ValueTitle + '%'))}    Фильтрация по имени автора
-        #DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(Song.tag.ilike('%' + ValueTitle + '%'))}     Фильтрация по тегу
-        DictAlbAuthor = {i.id_song: i.title for i in s.query(Song).filter(*StrFilt)}
-        SDictAlbAut = dict(sorted(DictAlbAuthor.items(), key=lambda x: x[0]))
-        resp.text = json.dumps({'songs': SDictAlbAut})
+    def __init__ (self, handl):
+        self.handl = handl
 
+    def on_get(self, req, resp):
+        list_songs = self.handl.songs_get(req.params)
+        resp.text = json.dumps({'songs': list_songs})
+
+    @json_body
     def on_post(self, req, resp):
-        
-        form = json.loads(req.stream.read()) #не по json подумать
-        NameColumns = to_dict(Song)
-        del NameColumns['id_song']
-        if form.keys() == NameColumns.keys():
-            s.add(Song(**form)) 
-            s.commit()
-            resp.status = falcon.HTTP_201
-            resp.text = json.dumps({'id_song': s.query(Song.id_song).filter().order_by(desc(Song.id_song)).limit(1)[0][0]})#*
-        else:
-            raise falcon.HTTPBadRequest
+        self.handl.songs_post(req.stream)
+        resp.status = falcon.HTTP_201
+        resp.text = json.dumps({'id_song': s.query(Song.id_song).filter().order_by(desc(Song.id_song)).limit(1)[0][0]})#*
         
 class SongH:
 
-    def on_get(self, req, resp, name): 
-        if name.isdigit():
-            try:
-                songquery = s.query(Song).get(name)
-                dictsq = to_dict(songquery)
-                if songquery.file is not None:
-                    dictsq['file'] = 'Available'
-                else:
-                    dictsq['file'] = 'Not available'
-                resp.text = json.dumps(dictsq)
-            except AttributeError:
-                raise falcon.HTTPNotFound
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
-        
+    def __init__(self, handl):
+        self.handl = handl
+
+    @valid_id_not_in_db
+    def on_get(self, req, resp, name):       
+        dictsq = self.handl.get_song(name)
+        resp.text = json.dumps(dictsq)
+
+    @valid_id_not_in_db
+    @json_body_and_name
     def on_post(self, req, resp, name): #теги
-        if name.isdigit():
-            form = json.loads(req.stream.read())
-            if 'tag' in form:
-                StrTags = form['tag'].strip()
-                if ',' in form['tag']:
-                    StrTags = StrTags.replace(',', ' ')
-                if '.' in form['tag']:
-                    StrTags = StrTags.replace('.', ' ')
-                TagsList = StrTags.split()
-                InfoSong = s.query(Song).get(name)
-                if InfoSong.tag is not None:
-                    TabTag = s.query(Song).get(name).tag
-                    TabTagList = TabTag.split()
-                    print(TabTag)
-                    TabTagList.extend(TagsList)
-                else:
-                    TabTagList = TagsList
-                InfoSong.tag = ' '.join(TabTagList)
-                s.add(InfoSong)
-                s.commit()  
-                resp.status = falcon.HTTP_201
-                resp.text = json.dumps({'title': 'Tags added successfully'})
-            else:
-                raise falcon.HTTPBadRequest
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format") 
-         
+        self.handl.post_song(req.stream, name)
+        resp.status = falcon.HTTP_201
+        resp.text = json.dumps({'title': 'Tags added successfully'})
+
+    @valid_id_not_in_db
+    @json_body_and_name
     def on_patch(self, req, resp, name):
-        if name.isdigit():
-            try:
-                form = json.loads(req.stream.read())
-                alb = s.query(Song).get(name)
-                AlbDict = to_dict(alb) 
-                del AlbDict['id_song']
-                if set(form.keys()).issubset(set(AlbDict.keys())):
-                    if 'album_id' in list(form.keys()) and form['album_id'] not in [str(id_alb[0]) for id_alb in s.query(Album.id_album)]:
-                        raise falcon.HTTPNotFound('Please, enter an existing author ID')
-                    for key in form.keys():
-                        setattr(alb, key, form[key])
-                    s.add(alb)
-                    s.commit()
-                else:
-                    raise falcon.HTTPBadRequest
-                alb_1 = s.query(Song).get(name)
-                resp.text = json.dumps(to_dict(alb_1))
-            except AttributeError:
-                raise falcon.HTTPNotFound
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format") 
+       song_get = self.handl.patch_song(req.stream, name)
+       resp.text = json.dumps(to_dict(song_get))
         
+    @valid_id_not_in_db
+    @json_body_and_name
     def on_delete(self, req, resp, name):
-        if name.isdigit():
-            try:
-                i = s.query(Song).filter(Song.id_song == name).one() #по айди
-                s.delete(i)
-                s.commit()
-                resp.status = falcon.HTTP_204
-            except NoResultFound:
-                raise falcon.HTTPNotFound
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
+        self.handl.del_song(name)
+        resp.status = falcon.HTTP_204
 
 class LoadGet:
-    def on_get(self, req, resp, name):
-        if name.isdigit():
-            try:
-                playsong = s.query(Song).get(name).file
-                resp.content_type = 'audio/mpeg'
-               # decplaysong = base64.b64decode(playsong)
-                resp.data = playsong
-                resp.status = falcon.HTTP_200 #206
-            except AttributeError:
-                raise falcon.HTTPNotFound
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format")
-        
-    def on_put(self, req, resp, name): #подумать на типом метода (put/patch)
 
+    def __init__(self, handl):
+        self.handl = handl
+
+    def valid_content_type(req, resp, resource, params):
         if 'multipart/form-data' not in req.content_type:
             raise falcon.HTTPBadRequest("Use 'multipart/form-data' content")
-        
-        if name.isdigit():
-           
-            for i in req.get_media():
-                content_of_file = i.stream.read()
-                name_of_file = i.filename
-                
-                
-            if mimetypes.guess_type(name_of_file)[0] != 'audio/mpeg':
-                raise falcon.HTTPBadRequest("You can only use .mp3 format")
-            audiofile = s.query(Song).get(name)
-            audiofile.file = content_of_file 
-            s.add(audiofile)
-            s.commit()
-            resp.status = falcon.HTTP_201
-        else:
-            raise falcon.HTTPNotFound("Please, enter song's ID in numeric format") 
-      #  def bin_song()
 
+    @valid_id_not_in_db
+    def on_get(self, req, resp, name):
+        # decplaysong = base64.b64decode(playsong)
+        playsong = s.query(Song).get(name).file
+        resp.content_type = 'audio/mpeg'
+        resp.data = playsong
+        resp.status = falcon.HTTP_200 #206
+
+    @valid_id_not_in_db
+    @json_body_and_name
+    @falcon.before(valid_content_type)  
+    def on_put(self, req, resp, name): #подумать на типом метода (put/patch)
+        self.handl.put_load_song(name, req.get_media())
+        resp.status = falcon.HTTP_201
+
+class HandlerSongs:
+
+    def songs_get(self, params):
+        song_list = self.songs_get_filter(params)
+        dictsong = {i.id_song: i.title for i in s.query(Song).filter(*song_list)}
+        sdictsong = dict(sorted(dictsong.items(), key=lambda x: x[0]))
+        return sdictsong
+    
+    def songs_get_filter(self, params):
+        strfilt = []
+        if 'album' in params:
+            strfilt.append(Song.album_id == Album.id_album)
+            lalbum = params['album']
+            if type(lalbum) != list:
+                lalbum = lalbum.split()
+            for alb in lalbum:
+                strfilt.append(Album.title.ilike(alb.rstrip() + '%'))
+                
+        if 'author' in params:
+            if 'album' not in params:
+                strfilt.append(Song.album_id == Album.id_album)
+            strfilt.append(Album.author_id == Author.id_author)  
+            lauthor = params['author']
+            if type(lauthor) != list:
+                lauthor = lauthor.split()
+            for aut in lauthor:
+                strfilt.append(Author.Name.ilike(aut.rstrip() + '%'))
+
+        if 'tag' in params:
+            ltag = params['tag']
+            if type(ltag) != list:
+                ltag = ltag.split()
+            for t in ltag:
+                strfilt.append(Song.tag.ilike('%' + t.rstrip() + '%'))
+
+        if 'song' in params:
+            lsong = params['song']
+            if type(lsong) != list:
+                lsong = lsong.split()
+            for sg in lsong:
+                strfilt.append(Song.title.ilike(sg.rstrip() + '%'))
+        return strfilt
+    
+    def songs_post(self, body_j):
+        form = json.loads(body_j.read()) #не по json подумать
+        form_valid = self.post.form(form)
+        s.add(Song(**form_valid)) 
+        s.commit()
         
-           
+    def post_form(self, form):
+        namecolumns = to_dict(Song)
+        del namecolumns['id_song']
+        if form.keys() == namecolumns.keys():
+            return form
+        else:
+            raise falcon.HTTPBadRequest
+    
+    def get_song(self, name):
+        songquery = s.query(Song).get(name)
+        dictsq = to_dict(songquery)
+        if songquery.file is not None:
+            dictsq['file'] = 'Available'
+            return dictsq
+        dictsq['file'] = 'Not available'
+        return dictsq
+    
+    def post_song(self, body_j, name):
+
+        form = json.loads(body_j.read())
+        tagslist = self.valid_tags(form)
+        tags = self.add_tags(tagslist, name)
+        s.add(tags)
+        s.commit() 
+
+    def valid_tags(self ,form):
+        if 'tag' in form:
+            StrTags = form['tag'].strip()
+            if ',' in form['tag']:
+                StrTags = StrTags.replace(',', ' ')
+            if '.' in form['tag']:
+                StrTags = StrTags.replace('.', ' ')
+            return StrTags.split()
+        else:
+            raise falcon.HTTPBadRequest
+        
+    def add_tags(self, tagslist, name):
+        infosong = s.query(Song).get(name)
+        if infosong.tag is not None:
+            tabtag = s.query(Song).get(name).tag
+            tabtaglist = tabtag.split()
+            tabtaglist.extend(tagslist)
+        else:
+            tabtaglist = tagslist
+        infosong.tag = ' '.join(tabtaglist)
+        return infosong 
+   
+    def patch_song(self, body_j, name):
+        form = json.loads(body_j.read())
+        get_query_song = s.query(Song).get(name)
+        modified_res = self.modif_song(get_query_song, form)
+        s.add(modified_res)
+        s.commit()
+        sg1 = s.query(Song).get(name)
+        return sg1
+            
+    def modif_song(self, sg, form):
+        sgdict = to_dict(sg) 
+        del sgdict['id_song']
+        if set(form.keys()).issubset(set(sgdict.keys())):
+            if 'album_id' in list(form.keys()) and form['album_id'] not in [str(id_alb[0]) for id_alb in s.query(Album.id_album)]:
+                raise falcon.HTTPNotFound('Please, enter an existing author ID')
+            for key in form.keys():
+                setattr(sg, key, form[key])
+            return sg         
+        else:
+            raise falcon.HTTPBadRequest
+        
+    def del_song(self, name):
+        i = s.query(Song).filter(Song.id_song == name).one() #по айди
+        s.delete(i)
+        s.commit()
+
+    def put_load_song(self, name, get_media):
+        load_sound = self.put_load_song_valid(name, get_media)
+        s.add(load_sound)
+        s.commit()
+
+    def put_load_song_valid(self, name, get_media):
+        for i in get_media:
+            content_of_file = i.stream.read()
+            name_of_file = i.filename
+        if mimetypes.guess_type(name_of_file)[0] != 'audio/mpeg':
+            raise falcon.HTTPBadRequest("You can only use .mp3 format")
+        audiofile = s.query(Song).get(name)
+        audiofile.file = content_of_file
+        return audiofile
