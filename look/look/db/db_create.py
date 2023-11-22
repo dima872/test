@@ -3,9 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
 
-engine = create_engine(
-    "postgresql+psycopg2://dima:8726621331@localhost/dima", echo=True
-)
+engine = create_engine("postgresql+psycopg2://dima:8726621331@db:5432/bd", echo=True)
 engine.connect()
 session = sessionmaker(bind=engine)
 

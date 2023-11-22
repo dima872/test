@@ -1,6 +1,6 @@
 import falcon
+import json
 from sqlalchemy.exc import NoResultFound
-from json.decoder import JSONDecodeError
 
 
 def to_dict(self):
@@ -22,11 +22,11 @@ def valid_id_not_in_db(meth):
 def json_body(meth):
     def wrapper(self, req, resp):
         try:
+            # if type(json.loads(req.stream.read())) == int:
+            #   raise falcon.HTTPBadRequest("Not JSON")
             meth(self, req, resp)
-        except JSONDecodeError:
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
             raise falcon.HTTPBadRequest("Not JSON")
-        except UnicodeDecodeError:
-            raise falcon.HTTPBadRequest("What are you doing?!")
 
     return wrapper
 
@@ -35,9 +35,7 @@ def json_body_and_name(meth):
     def wrapper(self, req, resp, name):
         try:
             meth(self, req, resp, name)
-        except JSONDecodeError:
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
             raise falcon.HTTPBadRequest("Not JSON")
-        except UnicodeDecodeError:
-            raise falcon.HTTPBadRequest("What are you doing?!")
 
     return wrapper

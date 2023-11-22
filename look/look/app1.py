@@ -1,12 +1,12 @@
 import falcon
-from .resources.albums import AlbumsH, AlbumH, HandlerAlbums
-from .resources.authors import AuthorsH, AuthorH, HandlerAuthors
-from .resources.songs import SongsH, SongH, LoadGet, HandlerSongs
-from .jwtoken import AuthMiddleware, LoginH
+from resources.albums import AlbumsH, AlbumH, HandlerAlbums
+from resources.authors import AuthorsH, AuthorH, HandlerAuthors
+from resources.songs import SongsH, SongH, LoadGet, HandlerSongs
+from jwtoken import AuthMiddleware, LoginH
 
 # falcon.strip_url_path_trailing_slash = True
 app = application = falcon.App(middleware=[AuthMiddleware()])
-# Методы falcon.App.add_route()и falcon.asgi.App.add_route()используются для связи шаблона URI с ресурсом. Затем Falcon сопоставляет входящие запросы с ресурсами на основе этих шаблонов.
+# Метод falcon.App.add_route() используtтся для связи шаблона URI с ресурсом. Затем Falcon сопоставляет входящие запросы с ресурсами на основе этих шаблонов.
 handleralb = HandlerAlbums()
 handleraut = HandlerAuthors()
 handlersgs = HandlerSongs()

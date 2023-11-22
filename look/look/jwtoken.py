@@ -2,8 +2,8 @@ import json
 import falcon
 import jwt
 from passlib.hash import sha256_crypt
-from .db.db_create import User, session
-from .resources.func.functions1 import json_body
+from db.db_create import User, session
+from resources.func.functions1 import json_body
 
 s = session()
 cookie_o = {"name": "auth_token", "max_age": 3600, "path": "/res", "http_only": True}
@@ -42,8 +42,8 @@ class LoginH:
             email = form["email"]
             password = form["password"]
             return email, password
-        except KeyError:
-            raise falcon.HTTPBadRequest("No such key")
+        except (KeyError, TypeError):
+            raise falcon.HTTPBadRequest("The required field is missing")
 
 
 class AuthMiddleware:

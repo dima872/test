@@ -1,7 +1,7 @@
 import json
 import falcon
 from sqlalchemy import desc
-from ..db.db_create import Author, Album, session
+from db.db_create import Author, Album, session
 from .func.functions1 import to_dict, valid_id_not_in_db, json_body, json_body_and_name
 
 s = session()
@@ -41,9 +41,9 @@ class AuthorH:
     @valid_id_not_in_db
     @json_body_and_name
     def on_patch(self, req, resp, name):
-        self.handl.autor_patch(req.stream, name)
-        alb_1 = s.query(Album).get(name)
-        resp.text = json.dumps(to_dict(alb_1))
+        self.handl.author_patch(req.stream, name)
+        aut_1 = s.query(Author).get(name)
+        resp.text = json.dumps(to_dict(aut_1))
 
     @valid_id_not_in_db
     @json_body_and_name
@@ -74,28 +74,26 @@ class HandlerAuthors:
         form_valid = self.post_form(form)
         s.add(Author(**form_valid))
         s.commit()
-        return
 
     def post_form(self, form):
         namecolumns = to_dict(Author)
         del namecolumns["id_author"]
-        if form.keys() == namecolumns.keys():
+        if type(form) == dict and form.keys() == namecolumns.keys():
             return form
         else:
             raise falcon.HTTPBadRequest
 
-    def autor_patch(self, body_j, name):
+    def author_patch(self, body_j, name):
         form = json.loads(body_j.read())
         form_valid = self.patch_form(form, name)
         s.add(form_valid)
         s.commit()
-        return
 
     def patch_form(self, form, name):
         aut = s.query(Author).get(name)
         autdict = to_dict(aut)
         del autdict["id_author"]
-        if set(form.keys()).issubset(set(autdict.keys())):
+        if type(form) == dict and set(form.keys()).issubset(set(autdict.keys())):
             for key in form:
                 setattr(aut, key, form[key])
             return aut
@@ -106,4 +104,3 @@ class HandlerAuthors:
         i = s.query(Author).filter(Author.id_author == name).one()  # по айди
         s.delete(i)
         s.commit()
-        return

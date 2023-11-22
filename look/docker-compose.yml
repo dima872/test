@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+
+  app:
+    build: ./look/
+    container_name: app_music
+    command: gunicorn --bind :8000 app1
+    volumes:
+      - ./look:/look/
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    
+  db:
+    container_name: datab
+    image: postgres:latest
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=dima
+      - POSTGRES_PASSWORD=8726621331
+      - POSTGRES_DB=bd
+    expose:
+      - 5432
+    
+  pgadmin: #для наглядности
+    container_name: pg_admin
+    image: dpage/pgadmin4
+    depends_on:
+      - db
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=dima@mail.ru
+      - PGADMIN_DEFAULT_PASSWORD=8726621331
+    ports:
+      - "5050:80"

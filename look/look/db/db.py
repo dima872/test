@@ -3,9 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from db_create import Base, Album, Author, Song, User
 from passlib.hash import sha256_crypt
 
-engine = create_engine(
-    "postgresql+psycopg2://dima:8726621331@localhost/dima", echo=True
-)
+engine = create_engine("postgresql+psycopg2://dima:8726621331@db:5432/bd", echo=True)
 engine.connect()
 # echo включает ведение лога
 

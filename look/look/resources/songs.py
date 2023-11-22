@@ -1,7 +1,7 @@
 import json
 import falcon
 from sqlalchemy import desc
-from ..db.db_create import Album, Author, Song, session
+from db.db_create import Album, Author, Song, session
 import mimetypes
 from .func.functions1 import to_dict, valid_id_not_in_db, json_body, json_body_and_name
 
@@ -27,7 +27,7 @@ class SongsH:
                 .order_by(desc(Song.id_song))
                 .limit(1)[0][0]
             }
-        )  # *
+        )
 
 
 class SongH:
@@ -36,8 +36,8 @@ class SongH:
 
     @valid_id_not_in_db
     def on_get(self, req, resp, name):
-        dictsq = self.handl.get_song(name)
-        resp.text = json.dumps(dictsq)
+        one_song = self.handl.get_song(name)
+        resp.text = json.dumps(one_song)
 
     @valid_id_not_in_db
     @json_body_and_name
@@ -50,7 +50,7 @@ class SongH:
     @json_body_and_name
     def on_patch(self, req, resp, name):
         song_get = self.handl.patch_song(req.stream, name)
-        resp.text = json.dumps(to_dict(song_get))
+        resp.text = json.dumps(song_get)
 
     @valid_id_not_in_db
     @json_body_and_name
@@ -126,15 +126,17 @@ class HandlerSongs:
         return strfilt
 
     def songs_post(self, body_j):
-        form = json.loads(body_j.read())  # не по json подумать
-        form_valid = self.post.form(form)
+        form = json.loads(body_j.read())
+        form_valid = self.post_form(form)
         s.add(Song(**form_valid))
         s.commit()
 
     def post_form(self, form):
         namecolumns = to_dict(Song)
         del namecolumns["id_song"]
-        if form.keys() == namecolumns.keys():
+        del namecolumns["file"]
+        if type(form) == dict and form.keys() == namecolumns.keys():
+            self.existing_album(form)
             return form
         else:
             raise falcon.HTTPBadRequest
@@ -150,10 +152,13 @@ class HandlerSongs:
 
     def post_song(self, body_j, name):
         form = json.loads(body_j.read())
-        tagslist = self.valid_tags(form)
-        tags = self.add_tags(tagslist, name)
-        s.add(tags)
-        s.commit()
+        if type(form) == dict:
+            tagslist = self.valid_tags(form)
+            tags = self.add_tags(tagslist, name)
+            s.add(tags)
+            s.commit()
+        else:
+            raise falcon.HTTPBadRequest
 
     def valid_tags(self, form):
         if "tag" in form:
@@ -169,11 +174,13 @@ class HandlerSongs:
     def add_tags(self, tagslist, name):
         infosong = s.query(Song).get(name)
         if infosong.tag is not None:
-            tabtag = s.query(Song).get(name).tag
+            tabtag = infosong.tag
             tabtaglist = tabtag.split()
             tabtaglist.extend(tagslist)
         else:
             tabtaglist = tagslist
+        tabtaglist = list(set(tabtaglist))
+        print(tabtaglist)
         infosong.tag = " ".join(tabtaglist)
         return infosong
 
@@ -183,22 +190,26 @@ class HandlerSongs:
         modified_res = self.modif_song(get_query_song, form)
         s.add(modified_res)
         s.commit()
-        sg1 = s.query(Song).get(name)
+        sg1 = self.get_song(name)
         return sg1
 
     def modif_song(self, sg, form):
         sgdict = to_dict(sg)
         del sgdict["id_song"]
-        if set(form.keys()).issubset(set(sgdict.keys())):
-            if "album_id" in list(form.keys()) and form["album_id"] not in [
-                str(id_alb[0]) for id_alb in s.query(Album.id_album)
-            ]:
-                raise falcon.HTTPNotFound("Please, enter an existing author ID")
+        del sgdict["file"]
+        if type(form) == dict and set(form.keys()).issubset(set(sgdict.keys())):
+            self.existing_album(form)
             for key in form.keys():
                 setattr(sg, key, form[key])
             return sg
         else:
             raise falcon.HTTPBadRequest
+
+    def existing_album(self, form):
+        if "album_id" in list(form) and form["album_id"] not in [
+            str(id_alb[0]) for id_alb in s.query(Album.id_album)
+        ]:
+            raise falcon.HTTPNotFound("Please, enter an existing author ID")
 
     def del_song(self, name):
         i = s.query(Song).filter(Song.id_song == name).one()  # по айди
