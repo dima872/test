@@ -37,7 +37,7 @@ class Song(Base):
     title = Column(String(250), nullable=False)
     album_id = Column(Integer, ForeignKey("Albums.id_album"))
     album = relationship("Album")
-    tag = Column(String(250), nullable=True)
+    tag = Column(String(10000), nullable=True)
     file = Column(LargeBinary, nullable=True)  # LargeBinary
 
 

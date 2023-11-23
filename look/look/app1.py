@@ -11,6 +11,7 @@ handleralb = HandlerAlbums()
 handleraut = HandlerAuthors()
 handlersgs = HandlerSongs()
 
+
 app.add_route("/res/albums", AlbumsH(handleralb))
 app.add_route("/res/albums/{name}", AlbumH(handleralb))
 app.add_route("/res/authors", AuthorsH(handleraut))

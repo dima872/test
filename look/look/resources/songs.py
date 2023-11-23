@@ -64,7 +64,10 @@ class LoadGet:
         self.handl = handl
 
     def valid_content_type(req, resp, resource, params):
-        if "multipart/form-data" not in req.content_type:
+        try:
+            if "multipart/form-data" not in req.content_type:
+                raise falcon.HTTPBadRequest("Use 'multipart/form-data' content")
+        except TypeError:
             raise falcon.HTTPBadRequest("Use 'multipart/form-data' content")
 
     @valid_id_not_in_db
@@ -137,6 +140,8 @@ class HandlerSongs:
         del namecolumns["file"]
         if type(form) == dict and form.keys() == namecolumns.keys():
             self.existing_album(form)
+            list_tags = list(set(self.valid_tags(form)))
+            form["tag"] = " ".join(list_tags)
             return form
         else:
             raise falcon.HTTPBadRequest
@@ -153,12 +158,24 @@ class HandlerSongs:
     def post_song(self, body_j, name):
         form = json.loads(body_j.read())
         if type(form) == dict:
-            tagslist = self.valid_tags(form)
-            tags = self.add_tags(tagslist, name)
+            tags = self.add_tags(form, name)
             s.add(tags)
             s.commit()
         else:
             raise falcon.HTTPBadRequest
+
+    def add_tags(self, form, name):
+        tagslist = self.valid_tags(form)
+        infosong = s.query(Song).get(name)
+        if infosong.tag is not None:
+            tabtag = infosong.tag
+            tabtaglist = tabtag.split()
+            tabtaglist.extend(tagslist)
+        else:
+            tabtaglist = tagslist
+        tabtaglist = list(set(tabtaglist))
+        infosong.tag = " ".join(tabtaglist)
+        return infosong
 
     def valid_tags(self, form):
         if "tag" in form:
@@ -170,19 +187,6 @@ class HandlerSongs:
             return StrTags.split()
         else:
             raise falcon.HTTPBadRequest
-
-    def add_tags(self, tagslist, name):
-        infosong = s.query(Song).get(name)
-        if infosong.tag is not None:
-            tabtag = infosong.tag
-            tabtaglist = tabtag.split()
-            tabtaglist.extend(tagslist)
-        else:
-            tabtaglist = tagslist
-        tabtaglist = list(set(tabtaglist))
-        print(tabtaglist)
-        infosong.tag = " ".join(tabtaglist)
-        return infosong
 
     def patch_song(self, body_j, name):
         form = json.loads(body_j.read())
@@ -199,6 +203,9 @@ class HandlerSongs:
         del sgdict["file"]
         if type(form) == dict and set(form.keys()).issubset(set(sgdict.keys())):
             self.existing_album(form)
+            if "tag" in form:
+                list_tags = list(set(self.valid_tags(form)))
+                form["tag"] = " ".join(list_tags)
             for key in form.keys():
                 setattr(sg, key, form[key])
             return sg
@@ -206,10 +213,10 @@ class HandlerSongs:
             raise falcon.HTTPBadRequest
 
     def existing_album(self, form):
-        if "album_id" in list(form) and form["album_id"] not in [
+        if "album_id" in form and form["album_id"] not in [
             str(id_alb[0]) for id_alb in s.query(Album.id_album)
         ]:
-            raise falcon.HTTPNotFound("Please, enter an existing author ID")
+            raise falcon.HTTPNotFound("Please, enter an existing album's ID")
 
     def del_song(self, name):
         i = s.query(Song).filter(Song.id_song == name).one()  # по айди

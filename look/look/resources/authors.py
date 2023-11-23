@@ -1,7 +1,7 @@
 import json
 import falcon
 from sqlalchemy import desc
-from db.db_create import Author, Album, session
+from db.db_create import Author, session
 from .func.functions1 import to_dict, valid_id_not_in_db, json_body, json_body_and_name
 
 s = session()

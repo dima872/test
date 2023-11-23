@@ -108,7 +108,7 @@ class HandlerAlbums:
             raise falcon.HTTPBadRequest
 
     def existing_author(self, form):
-        if "author_id" in list(form) and form["author_id"] not in [
+        if "author_id" in form and form["author_id"] not in [
             str(id_aut[0]) for id_aut in s.query(Author.id_author)
         ]:
             raise falcon.HTTPNotFound("Please, enter an existing author's ID")
