@@ -36,6 +36,9 @@ class AlbumH:
     @valid_id_not_in_db
     def on_get(self, req, resp, name):
         alb = s.query(Album).get(name)
+        print(to_dict(alb))
+        print(to_dict(Album))
+        print(Album.__table__.columns)
         resp.text = json.dumps(to_dict(alb))
 
     @valid_id_not_in_db
